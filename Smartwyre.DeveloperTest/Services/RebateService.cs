@@ -1,11 +1,4 @@
-﻿// SMARTWYRE DEVELOPER TEST REFACTOR
-// REFACTORED: The RebateService now follows SOLID principles:
-// - Single Responsibility: Only orchestrates the rebate calculation flow
-// - Open/Closed: New incentive types can be added without modifying this class
-// - Dependency Inversion: Depends on abstractions, not concretions
-// - Strategy Pattern: Delegates calculation logic to incentive-specific calculators
-
-using Smartwyre.DeveloperTest.Data;
+﻿using Smartwyre.DeveloperTest.Data;
 using Smartwyre.DeveloperTest.Types;
 
 namespace Smartwyre.DeveloperTest.Services;
@@ -38,6 +31,8 @@ public class RebateService : IRebateService
         if (rebate == null)
         {
             result.Success = false;
+            result.Message = "Rebate not found";
+            result.Amount = 0;
             return result;
         }
 
@@ -48,11 +43,17 @@ public class RebateService : IRebateService
         var rebateAmount = calculator.Calculate(rebate, product, request, out bool isValid);
         
         result.Success = isValid;
+        result.Amount = rebateAmount;
 
-        // Store result only if calculation was successful
-        if (result.Success)
+        if (isValid)
         {
+            result.Message = "Rebate calculated successfully";
+            // Store result only if calculation was successful
             _rebateDataStore.StoreCalculationResult(rebate, rebateAmount);
+        }
+        else
+        {
+            result.Message = "Invalid rebate calculation - check product compatibility and values";
         }
 
         return result;
