@@ -44,3 +44,11 @@ You are free to use any frameworks/NuGet packages that you see fit. You should p
 Feel free to use code comments to describe your changes. You are also welcome to update this readme with any important details for us to consider.
 
 Once you have completed the exercise either ensure your repository is available publicly or contact the hiring manager to set up a private share.
+
+## Notes / Design Decisions
+
+- **Strategy pattern for incentive calculators**: Replaced switch statement with `IIncentiveCalculator` interface and dedicated classes for each incentive type (FixedCashAmount, FixedRateRebate, AmountPerUom).
+- **RebateService orchestration role**: Service now focuses on data loading, calculator delegation via resolver, and result persistence—no business logic duplication.
+- **Unit tests added (service + calculators)**: Comprehensive test coverage including RebateService behavior tests and individual calculator validation/calculation tests.
+- **Runner supports CLI args / interactive**: Console application accepts command-line arguments for automation or prompts interactively for user input.
+- **SOLID compliance**: Adheres to Single Responsibility, Open/Closed, and Dependency Inversion principles for maintainable, extensible code.

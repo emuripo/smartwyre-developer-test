@@ -5,93 +5,55 @@ namespace Smartwyre.DeveloperTest.Services;
 
 public class RebateService : IRebateService
 {
+    private readonly IRebateDataStore _rebateDataStore;
+    private readonly IProductDataStore _productDataStore;
+    private readonly IIncentiveCalculatorResolver _calculatorResolver;
+
+    public RebateService(
+        IRebateDataStore rebateDataStore = null,
+        IProductDataStore productDataStore = null,
+        IIncentiveCalculatorResolver calculatorResolver = null)
+    {
+        _rebateDataStore = rebateDataStore ?? new RebateDataStore();
+        _productDataStore = productDataStore ?? new ProductDataStore();
+        _calculatorResolver = calculatorResolver ?? new IncentiveCalculatorResolver();
+    }
+
     public CalculateRebateResult Calculate(CalculateRebateRequest request)
     {
-        var rebateDataStore = new RebateDataStore();
-        var productDataStore = new ProductDataStore();
-
-        Rebate rebate = rebateDataStore.GetRebate(request.RebateIdentifier);
-        Product product = productDataStore.GetProduct(request.ProductIdentifier);
+        // Load required data
+        Rebate rebate = _rebateDataStore.GetRebate(request.RebateIdentifier);
+        Product product = _productDataStore.GetProduct(request.ProductIdentifier);
 
         var result = new CalculateRebateResult();
 
-        var rebateAmount = 0m;
-
-        switch (rebate.Incentive)
+        // Basic validation
+        if (rebate == null)
         {
-            case IncentiveType.FixedCashAmount:
-                if (rebate == null)
-                {
-                    result.Success = false;
-                }
-                else if (!product.SupportedIncentives.HasFlag(SupportedIncentiveType.FixedCashAmount))
-                {
-                    result.Success = false;
-                }
-                else if (rebate.Amount == 0)
-                {
-                    result.Success = false;
-                }
-                else
-                {
-                    rebateAmount = rebate.Amount;
-                    result.Success = true;
-                }
-                break;
-
-            case IncentiveType.FixedRateRebate:
-                if (rebate == null)
-                {
-                    result.Success = false;
-                }
-                else if (product == null)
-                {
-                    result.Success = false;
-                }
-                else if (!product.SupportedIncentives.HasFlag(SupportedIncentiveType.FixedRateRebate))
-                {
-                    result.Success = false;
-                }
-                else if (rebate.Percentage == 0 || product.Price == 0 || request.Volume == 0)
-                {
-                    result.Success = false;
-                }
-                else
-                {
-                    rebateAmount += product.Price * rebate.Percentage * request.Volume;
-                    result.Success = true;
-                }
-                break;
-
-            case IncentiveType.AmountPerUom:
-                if (rebate == null)
-                {
-                    result.Success = false;
-                }
-                else if (product == null)
-                {
-                    result.Success = false;
-                }
-                else if (!product.SupportedIncentives.HasFlag(SupportedIncentiveType.AmountPerUom))
-                {
-                    result.Success = false;
-                }
-                else if (rebate.Amount == 0 || request.Volume == 0)
-                {
-                    result.Success = false;
-                }
-                else
-                {
-                    rebateAmount += rebate.Amount * request.Volume;
-                    result.Success = true;
-                }
-                break;
+            result.Success = false;
+            result.Message = "Rebate not found";
+            result.Amount = 0;
+            return result;
         }
 
-        if (result.Success)
+        // Get the appropriate calculator for this incentive type
+        var calculator = _calculatorResolver.GetCalculator(rebate.Incentive);
+        
+        // Delegate calculation to the specific calculator
+        var rebateAmount = calculator.Calculate(rebate, product, request, out bool isValid);
+        
+        result.Success = isValid;
+        result.Amount = rebateAmount;
+
+        if (isValid)
         {
-            var storeRebateDataStore = new RebateDataStore();
-            storeRebateDataStore.StoreCalculationResult(rebate, rebateAmount);
+            result.Message = "Rebate calculated successfully";
+            // Store result only if calculation was successful
+            _rebateDataStore.StoreCalculationResult(rebate, rebateAmount);
+        }
+        else
+        {
+            result.Message = "Invalid rebate calculation - check product compatibility and values";
         }
 
         return result;
