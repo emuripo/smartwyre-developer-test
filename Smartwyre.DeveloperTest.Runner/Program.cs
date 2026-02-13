@@ -1,4 +1,5 @@
-﻿using System;
+﻿#nullable enable
+using System;
 using Smartwyre.DeveloperTest.Services;
 using Smartwyre.DeveloperTest.Types;
 
@@ -13,125 +14,138 @@ class Program
 {
     static void Main(string[] args)
     {
-        Console.WriteLine("🏢 Smartwyre Rebate Calculator");
+        Console.WriteLine("Smartwyre Rebate Calculator");
         Console.WriteLine("===============================");
 
         try
         {
+            CalculateRebateRequest? request;
+            
             if (args.Length == 3)
             {
-                // Parse command line arguments
-                string rebateIdentifier = args[0];
-                string productIdentifier = args[1];
-                
-                if (!decimal.TryParse(args[2], out decimal volume))
+                request = BuildRequestFromArgs(args);
+                if (request == null)
                 {
-                    Console.WriteLine("❌ Error: Volume must be a valid decimal number.");
                     PrintUsage();
                     return;
-                }
-
-                // Create request from CLI arguments
-                var request = new CalculateRebateRequest
-                {
-                    RebateIdentifier = rebateIdentifier,
-                    ProductIdentifier = productIdentifier,
-                    Volume = volume
-                };
-
-                Console.WriteLine($"📋 Processing rebate calculation:");
-                Console.WriteLine($"   Rebate ID: {request.RebateIdentifier}");
-                Console.WriteLine($"   Product ID: {request.ProductIdentifier}");
-                Console.WriteLine($"   Volume: {request.Volume}");
-                Console.WriteLine();
-
-                // Execute the calculation using refactored service
-                var rebateService = new RebateService();
-                var result = rebateService.Calculate(request);
-
-                // Display results
-                if (result.Success)
-                {
-                    Console.WriteLine("✅ Rebate calculation successful!");
-                    Console.WriteLine("   Rebate has been calculated and stored.");
-                }
-                else
-                {
-                    Console.WriteLine("❌ Rebate calculation failed.");
-                    Console.WriteLine("   Please check that the rebate and product are valid and compatible.");
                 }
             }
             else
             {
-                // Interactive mode when no CLI arguments provided
-                Console.WriteLine("🎯 Starting interactive mode...");
-                Console.WriteLine();
-
-                Console.Write("Enter Rebate Identifier: ");
-                string rebateId = Console.ReadLine();
-
-                Console.Write("Enter Product Identifier: ");
-                string productId = Console.ReadLine();
-
-                Console.Write("Enter Volume: ");
-                string volumeInput = Console.ReadLine();
-
-                if (!decimal.TryParse(volumeInput, out decimal volume))
+                request = BuildRequestInteractively();
+                if (request == null)
                 {
-                    Console.WriteLine("❌ Error: Volume must be a valid decimal number.");
                     return;
                 }
-
-                var request = new CalculateRebateRequest
-                {
-                    RebateIdentifier = rebateId,
-                    ProductIdentifier = productId,
-                    Volume = volume
-                };
-
-                Console.WriteLine();
-                Console.WriteLine($"📋 Processing rebate calculation:");
-                Console.WriteLine($"   Rebate ID: {request.RebateIdentifier}");
-                Console.WriteLine($"   Product ID: {request.ProductIdentifier}");
-                Console.WriteLine($"   Volume: {request.Volume}");
-                Console.WriteLine();
-
-                var rebateService = new RebateService();
-                var result = rebateService.Calculate(request);
-
-                if (result.Success)
-                {
-                    Console.WriteLine("✅ Rebate calculation successful!");
-                    Console.WriteLine("   Rebate has been calculated and stored.");
-                }
-                else
-                {
-                    Console.WriteLine("❌ Rebate calculation failed.");
-                    Console.WriteLine("   Please check that the rebate and product are valid and compatible.");
-                }
             }
+
+            Console.WriteLine($"Processing rebate calculation:");
+            Console.WriteLine($"   Rebate ID: {request.RebateIdentifier}");
+            Console.WriteLine($"   Product ID: {request.ProductIdentifier}");
+            Console.WriteLine($"   Volume: {request.Volume}");
+            Console.WriteLine();
+
+            // Execute the calculation using refactored service
+            var rebateService = new RebateService();
+            var result = rebateService.Calculate(request);
+
+            PrintResult(result);
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"💥 An error occurred: {ex.Message}");
+            Console.WriteLine($"An error occurred: {ex.Message}");
             Console.WriteLine();
             PrintUsage();
         }
+    }
+
+    private static CalculateRebateRequest? BuildRequestFromArgs(string[] args)
+    {
+        string rebateIdentifier = args[0];
+        string productIdentifier = args[1];
+        
+        if (!decimal.TryParse(args[2], out decimal volume))
+        {
+            Console.WriteLine("Error: Volume must be a valid decimal number.");
+            return null;
+        }
+
+        return new CalculateRebateRequest
+        {
+            RebateIdentifier = rebateIdentifier,
+            ProductIdentifier = productIdentifier,
+            Volume = volume
+        };
+    }
+
+    private static CalculateRebateRequest? BuildRequestInteractively()
+    {
+        Console.WriteLine("Starting interactive mode...");
+        Console.WriteLine();
+
+        Console.Write("Enter Rebate Identifier: ");
+        string? rebateId = Console.ReadLine();
+
+        Console.Write("Enter Product Identifier: ");
+        string? productId = Console.ReadLine();
+
+        Console.Write("Enter Volume: ");
+        string? volumeInput = Console.ReadLine();
+
+        if (string.IsNullOrWhiteSpace(rebateId))
+        {
+            Console.WriteLine("Error: Rebate Identifier cannot be empty.");
+            return null;
+        }
+
+        if (string.IsNullOrWhiteSpace(productId))
+        {
+            Console.WriteLine("Error: Product Identifier cannot be empty.");
+            return null;
+        }
+
+        if (!decimal.TryParse(volumeInput, out decimal volume))
+        {
+            Console.WriteLine("Error: Volume must be a valid decimal number.");
+            return null;
+        }
 
         Console.WriteLine();
-        Console.WriteLine("Press any key to exit...");
-        Console.ReadKey();
+        return new CalculateRebateRequest
+        {
+            RebateIdentifier = rebateId,
+            ProductIdentifier = productId,
+            Volume = volume
+        };
+    }
+
+    private static void PrintResult(CalculateRebateResult result)
+    {
+        if (result.Success)
+        {
+            Console.WriteLine("Rebate calculation successful!");
+            Console.WriteLine($"   Message: {result.Message}");
+            Console.WriteLine($"   Amount: {result.Amount:C}");
+        }
+        else
+        {
+            Console.WriteLine("Rebate calculation failed.");
+            Console.WriteLine($"   Message: {result.Message}");
+            Console.WriteLine($"   Amount: {result.Amount:C}");
+        }
     }
 
     private static void PrintUsage()
     {
         Console.WriteLine();
-        Console.WriteLine("📖 Usage:");
-        Console.WriteLine("  dotnet run <RebateIdentifier> <ProductIdentifier> <Volume>");
+        Console.WriteLine("Usage:");
+        Console.WriteLine("  dotnet run -- <RebateIdentifier> <ProductIdentifier> <Volume>");
+        Console.WriteLine("  dotnet run --project <ProjectPath> -- <RebateIdentifier> <ProductIdentifier> <Volume>");
         Console.WriteLine();
-        Console.WriteLine("📝 Examples:");
-        Console.WriteLine("  dotnet run \"REBATE001\" \"PROD001\" 100");
-        Console.WriteLine("  dotnet run \"CASH50\" \"WIDGET123\" 25.75");
+        Console.WriteLine("Examples:");
+        Console.WriteLine("  dotnet run -- \"REBATE001\" \"PROD001\" 100");
+        Console.WriteLine("  dotnet run -- \"CASH50\" \"WIDGET123\" 25.75");
+        Console.WriteLine("  dotnet run --project Smartwyre.DeveloperTest.Runner -- \"REBATE001\" \"PROD001\" 100");
         Console.WriteLine();
         Console.WriteLine("Or run without arguments for interactive mode.");
     }
